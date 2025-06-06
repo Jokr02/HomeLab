@@ -51,5 +51,7 @@
     body_format: json
     status_code: 204
     timeout: 30
-    retries: 3
-    delay: 5
+  register: result
+  retries: 3
+  delay: 5
+  until: result is succeeded
