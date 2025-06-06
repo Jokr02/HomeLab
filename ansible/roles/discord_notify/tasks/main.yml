@@ -1,0 +1,56 @@
+---
+- name: Initialize result lists
+  set_fact:
+    success_hosts: []
+    failed_hosts: []
+
+- name: Collect success hosts
+  set_fact:
+    success_hosts: "{{ success_hosts + [item] }}"
+  loop: "{{ target_group }}"
+  when: hostvars[item]['upgrade_status'] == 'success'
+
+- name: Collect failed hosts
+  set_fact:
+    failed_hosts: "{{ failed_hosts + [item] }}"
+  loop: "{{ target_group }}"
+  when: hostvars[item]['upgrade_status'] == 'failed'
+
+- name: Build upgrade summary
+  set_fact:
+    upgrade_summary: |
+      {% for item in target_group %}
+      - {{ item }}: {{ '✅ Success' if hostvars[item]['upgrade_status'] == 'success' else '❌ Failed' }}
+      {% endfor %}
+    upgrade_timestamp: "{{ hostvars[target_group[0]]['upgrade_timestamp'] }}"
+
+- name: Determine Discord embed color
+  set_fact:
+    discord_color: >-
+      {% if failed_hosts | length == 0 %}
+        65280
+      {% elif success_hosts | length == 0 %}
+        16711680
+      {% else %}
+        16776960
+      {% endif %}
+
+- name: Send upgrade report to Discord
+  uri:
+    url: "{{ discordwebhook }}"
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    body:
+      embeds:
+        - title: "{{ notification_title | default('Ansible Job Report') }}"
+          description: "{{ upgrade_summary }}"
+          color: "{{ discord_color | int }}"
+          footer:
+            text: "Timestamp: {{ upgrade_timestamp }}"
+    body_format: json
+    status_code: 204
+  register: result
+  retries: 3
+  delay: 5
+  until: result is succeeded
