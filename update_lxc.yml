@@ -1,8 +1,8 @@
 ---
 - hosts: linux_lxc
+  gather_facts: true
   vars:
     discord_webhook_url_from_inventory: "{{ discordwebhook }}"
-    discord_message: ""
   tasks:
     - name: Upgrade aller installierten Pakete für Debian und Ubuntu
       apt:
@@ -15,23 +15,40 @@
         APT_LISTCHANGES_FRONTEND: none
       async: 600
       poll: 5
-      when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+      when: ansible_distribution in ['Ubuntu', 'Debian']
       register: upgrade_result
       ignore_errors: true
 
-    - name: Erfolgsmeldung setzen
+    - name: Erfolg oder Fehler setzen
       set_fact:
-        discord_message: "✅ Upgrade auf {{ inventory_hostname }} erfolgreich abgeschlossen am {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
-      when: upgrade_result is succeeded
+        upgrade_status: "{{ '✅ Erfolgreich' if upgrade_result is succeeded else '❌ Fehler' }}"
 
-    - name: Fehlermeldung setzen
+    - name: Status an Controller-Host übergeben
+      add_host:
+        name: localhost
+        groups: result_collector
+        host_status: "{{ inventory_hostname }}: {{ upgrade_status }}"
+
+- hosts: result_collector
+  gather_facts: false
+  tasks:
+    - name: Alle Upgrade-Ergebnisse sammeln
       set_fact:
-        discord_message: "⚠️ Upgrade auf {{ inventory_hostname }} FEHLGESCHLAGEN am {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
-      when: upgrade_result is failed
+        upgrade_summary: "{{ upgrade_summary | default([]) + [hostvars[item]['host_status']] }}"
+      loop: "{{ groups['linux_lxc'] }}"
 
-    - name: Sende Status an Discord
+    - name: Upgrade Summary erzeugen
+      set_fact:
+        discord_message: |
+          **Upgrade-Report**
+          {% for result in upgrade_summary %}
+          - {{ result }}
+          {% endfor %}
+          _Zeit: {{ ansible_date_time.date }} {{ ansible_date_time.time }}_
+
+    - name: Nachricht an Discord senden
       uri:
-        url: "{{ discord_webhook_url_from_inventory }}"
+        url: "{{ hostvars[groups['linux_lxc'][0]].discord_webhook_url_from_inventory }}"
         method: POST
         headers:
           Content-Type: "application/json"
