@@ -31,3 +31,16 @@
         status_code: 204
       when: upgrade_result is succeeded
 
+    - name: Sende Warnmeldung an Discord bei Fehler
+      uri:
+        url: "{{ discord_webhook_url_from_inventory }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: |
+          {
+            "content": "⚠️ Upgrade auf {{ inventory_hostname }} ist fehlgeschlagen!"
+          }
+        body_format: json
+        status_code: 204
+      when: upgrade_result is failed
