@@ -32,35 +32,35 @@
   vars:
     discord_webhook_url: "{{ discordwebhook }}"
   tasks:
-    - name: Collect all upgrade results
+    - name: Collect success hosts
+      set_fact:
+        success_hosts: "{{ success_hosts | default([]) + [item] }}"
+      loop: "{{ groups['linux_lxc'] }}"
+      when: hostvars[item]['upgrade_status'] == 'success'
+
+    - name: Collect failed hosts
+      set_fact:
+        failed_hosts: "{{ failed_hosts | default([]) + [item] }}"
+      loop: "{{ groups['linux_lxc'] }}"
+      when: hostvars[item]['upgrade_status'] == 'failed'
+
+    - name: Build upgrade summary
       set_fact:
         upgrade_summary: |
-          {% set success_count = 0 %}
-          {% set fail_count = 0 %}
-          {% for host in groups['linux_lxc'] %}
-            {% if hostvars[host]['upgrade_status'] == 'success' %}
-              {% set success_count = success_count + 1 %}
-            {% else %}
-              {% set fail_count = fail_count + 1 %}
-            {% endif %}
+          {% for item in groups['linux_lxc'] %}
+          - {{ item }}: {{ '✅ Success' if hostvars[item]['upgrade_status'] == 'success' else '❌ Failed' }}
           {% endfor %}
-          {% set _ = namespace(success=success_count, fail=fail_count) %}
-          {% for host in groups['linux_lxc'] %}
-          - {{ host }}: {{ '✅ Success' if hostvars[host]['upgrade_status'] == 'success' else '❌ Failed' }}
-          {% endfor %}
-        success_count: "{{ success_count }}"
-        fail_count: "{{ fail_count }}"
         upgrade_timestamp: "{{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
 
     - name: Determine Discord embed color
       set_fact:
         discord_color: >-
-          {% if fail_count == 0 %}
-            65280            # green
-          {% elif success_count == 0 %}
-            16711680         # red
+          {% if failed_hosts | length == 0 %}
+            65280
+          {% elif success_hosts | length == 0 %}
+            16711680
           {% else %}
-            16776960         # yellow
+            16776960
           {% endif %}
 
     - name: Send upgrade report to Discord
