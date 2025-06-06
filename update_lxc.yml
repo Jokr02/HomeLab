@@ -38,7 +38,6 @@
           {% for item in groups['linux_lxc'] %}
           - {{ item }}: {{ hostvars[item]['upgrade_status'] }}
           {% endfor %}
-          _Zeit: {{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}_
 
     - name: Nachricht an Discord senden
       uri:
@@ -47,6 +46,11 @@
         headers:
           Content-Type: "application/json"
         body:
-          content: "{{ upgrade_summary }}"
+          embeds:
+            - title: "Upgrade-Report"
+              description: "{{ upgrade_summary }}"
+              color: 5814783  # ein schönes Blau-Grün für OK
+              footer:
+                text: "Stand: {{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
         body_format: json
         status_code: 204
