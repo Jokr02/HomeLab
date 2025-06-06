@@ -1,10 +1,9 @@
----
 - hosts: linux_lxc
   gather_facts: true
   vars:
-    discord_webhook_url: "{{ discordwebhook }}"
+    discordwebhook: "{{ discordwebhook }}"
   tasks:
-    - name: Upgrade all installed packages on Debian and Ubuntu
+    - name: Run package upgrade
       apt:
         name: "*"
         state: latest
@@ -13,13 +12,10 @@
       environment:
         DEBIAN_FRONTEND: noninteractive
         APT_LISTCHANGES_FRONTEND: none
-      async: 600
-      poll: 5
-      when: ansible_distribution in ['Ubuntu', 'Debian']
       register: upgrade_result
       ignore_errors: true
 
-    - name: Set upgrade result as host fact
+    - name: Set upgrade result fact
       set_fact:
         upgrade_status: "{{ 'success' if upgrade_result is succeeded else 'failed' }}"
 
@@ -30,56 +26,6 @@
 - hosts: localhost
   gather_facts: false
   vars:
-    discord_webhook_url: "{{ discordwebhook }}"
-  tasks:
-    - name: Initialize result lists
-      set_fact:
-        success_hosts: []
-        failed_hosts: []
-
-    - name: Collect success hosts
-      set_fact:
-        success_hosts: "{{ success_hosts + [item] }}"
-      loop: "{{ groups['linux_lxc'] }}"
-      when: hostvars[item]['upgrade_status'] == 'success'
-
-    - name: Collect failed hosts
-      set_fact:
-        failed_hosts: "{{ failed_hosts + [item] }}"
-      loop: "{{ groups['linux_lxc'] }}"
-      when: hostvars[item]['upgrade_status'] == 'failed'
-
-    - name: Build upgrade summary
-      set_fact:
-        upgrade_summary: |
-          {% for item in groups['linux_lxc'] %}
-          - {{ item }}: {{ '✅ Success' if hostvars[item]['upgrade_status'] == 'success' else '❌ Failed' }}
-          {% endfor %}
-        upgrade_timestamp: "{{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
-
-    - name: Determine Discord embed color
-      set_fact:
-        discord_color: >-
-          {% if failed_hosts | length == 0 %}
-            65280
-          {% elif success_hosts | length == 0 %}
-            16711680
-          {% else %}
-            16776960
-          {% endif %}
-
-    - name: Send upgrade report to Discord
-      uri:
-        url: "{{ discord_webhook_url }}"
-        method: POST
-        headers:
-          Content-Type: "application/json"
-        body:
-          embeds:
-            - title: "Upgrade Report"
-              description: "{{ upgrade_summary }}"
-              color: "{{ discord_color | int }}"
-              footer:
-                text: "Timestamp: {{ upgrade_timestamp }}"
-        body_format: json
-        status_code: 204
+    target_group: "{{ groups['linux_lxc'] }}"
+  roles:
+    - discord_notify
