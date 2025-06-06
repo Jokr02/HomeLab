@@ -1,16 +1,33 @@
 ---
-- hosts: linux_lxc 
+- hosts: linux_lxc
+  vars:
+    discord_webhook_url_from_inventory: "{{ webhook }}"
   tasks:
-  - name: Upgrade all installed packages for Debian and Ubuntu
-    apt:
-      name: "*"
-      state: latest
-      update_cache: yes
-      force_apt_get: yes
-    environment:
-      DEBIAN_FRONTEND: noninteractive
-      APT_LISTCHANGES_FRONTEND: none
-    async: 600      # max 10 Minuten erlauben
-    poll: 5         # alle 5 Sekunden prüfen 
-    when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+    - name: Upgrade all installed packages for Debian and Ubuntu
+      apt:
+        name: "*"
+        state: latest
+        update_cache: yes
+        force_apt_get: yes
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+        APT_LISTCHANGES_FRONTEND: none
+      async: 600
+      poll: 5
+      when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+      register: upgrade_result
+
+    - name: Sende Erfolgsmeldung an Discord
+      uri:
+        url: "{{ discord_webhook_url_from_inventory }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: |
+          {
+            "content": "✅ Upgrade auf {{ inventory_hostname }} war erfolgreich abgeschlossen!"
+          }
+        body_format: json
+        status_code: 204
+      when: upgrade_result is succeeded
 
