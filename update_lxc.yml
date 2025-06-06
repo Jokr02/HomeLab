@@ -30,7 +30,7 @@
 - hosts: localhost
   gather_facts: false
   vars:
-    discord_webhook_url_from_inventory: "{{ hostvars[groups['linux_lxc'][0]].discord_webhook_url_from_inventory }}"
+    discord_webhook_url_from_inventory: "{{ discordwebhook }}"
   tasks:
     - name: Alle Upgrade-Ergebnisse sammeln
       set_fact:
