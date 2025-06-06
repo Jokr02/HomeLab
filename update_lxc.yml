@@ -4,7 +4,7 @@
     discord_webhook_url_from_inventory: "{{ discordwebhook }}"
     discord_message: ""
   tasks:
-    - name: Upgrade all installed packages für Debian und Ubuntu
+    - name: Upgrade aller installierten Pakete für Debian und Ubuntu
       apt:
         name: "*"
         state: latest
@@ -17,20 +17,16 @@
       poll: 5
       when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
       register: upgrade_result
-      ignore_errors: true  # Wichtig: Play läuft weiter, auch bei Fehler
+      ignore_errors: true
 
-    - name: Setze Erfolgsmeldung
+    - name: Erfolgsmeldung setzen
       set_fact:
-        discord_message: |
-          ✅ Upgrade erfolgreich auf {{ inventory_hostname }}
-          Zeit: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+        discord_message: "✅ Upgrade auf {{ inventory_hostname }} erfolgreich abgeschlossen am {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
       when: upgrade_result is succeeded
 
-    - name: Setze Fehlermeldung
+    - name: Fehlermeldung setzen
       set_fact:
-        discord_message: |
-          ⚠️ Upgrade FEHLGESCHLAGEN auf {{ inventory_hostname }}
-          Zeit: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+        discord_message: "⚠️ Upgrade auf {{ inventory_hostname }} FEHLGESCHLAGEN am {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
       when: upgrade_result is failed
 
     - name: Sende Status an Discord
@@ -39,9 +35,7 @@
         method: POST
         headers:
           Content-Type: "application/json"
-        body: |
-          {
-            "content": "{{ discord_message }}"
-          }
+        body:
+          content: "{{ discord_message }}"
         body_format: json
         status_code: 204
