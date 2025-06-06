@@ -21,7 +21,7 @@
 
     - name: Erfolg oder Fehler als Host-Fact speichern
       set_fact:
-        upgrade_status: "{{ '✅ Erfolgreich' if upgrade_result is succeeded else '❌ Fehler' }}"
+        upgrade_status: "{{ 'success' if upgrade_result is succeeded else 'failed' }}"
 
     - name: Timestamp setzen
       set_fact:
@@ -35,9 +35,33 @@
     - name: Alle Upgrade-Ergebnisse sammeln
       set_fact:
         upgrade_summary: |
+          {% set success_count = 0 %}
+          {% set fail_count = 0 %}
           {% for item in groups['linux_lxc'] %}
-          - {{ item }}: {{ hostvars[item]['upgrade_status'] }}
+            {% if hostvars[item]['upgrade_status'] == 'success' %}
+              {% set success_count = success_count + 1 %}
+            {% else %}
+              {% set fail_count = fail_count + 1 %}
+            {% endif %}
           {% endfor %}
+          {% set _ = namespace(success=success_count, fail=fail_count) %}
+          {% for item in groups['linux_lxc'] %}
+          - {{ item }}: {{ '✅ Erfolgreich' if hostvars[item]['upgrade_status'] == 'success' else '❌ Fehler' }}
+          {% endfor %}
+        success_count: "{{ success_count }}"
+        fail_count: "{{ fail_count }}"
+        upgrade_timestamp: "{{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
+
+    - name: Farbe für Discord bestimmen
+      set_fact:
+        discord_color: >-
+          {% if fail_count == 0 %}
+            65280            # grün
+          {% elif success_count == 0 %}
+            16711680         # rot
+          {% else %}
+            16776960         # gelb
+          {% endif %}
 
     - name: Nachricht an Discord senden
       uri:
@@ -49,8 +73,8 @@
           embeds:
             - title: "Upgrade-Report"
               description: "{{ upgrade_summary }}"
-              color: 5814783  # ein schönes Blau-Grün für OK
+              color: "{{ discord_color | int }}"
               footer:
-                text: "Stand: {{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
+                text: "Stand: {{ upgrade_timestamp }}"
         body_format: json
         status_code: 204
