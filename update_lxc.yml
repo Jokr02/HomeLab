@@ -19,40 +19,30 @@
       register: upgrade_result
       ignore_errors: true
 
-    - name: Erfolg oder Fehler setzen
+    - name: Erfolg oder Fehler als Host-Fact speichern
       set_fact:
         upgrade_status: "{{ '✅ Erfolgreich' if upgrade_result is succeeded else '❌ Fehler' }}"
 
-    - name: Status an Controller-Host übergeben
-      add_host:
-        name: localhost
-        groups: result_collector
-        host_status: "{{ inventory_hostname }}: {{ upgrade_status }}"
-
-- hosts: result_collector
+- hosts: localhost
   gather_facts: false
+  vars:
+    discord_webhook_url_from_inventory: "{{ hostvars[groups['linux_lxc'][0]].discord_webhook_url_from_inventory }}"
   tasks:
     - name: Alle Upgrade-Ergebnisse sammeln
       set_fact:
-        upgrade_summary: "{{ upgrade_summary | default([]) + [hostvars[item]['host_status']] }}"
-      loop: "{{ groups['linux_lxc'] }}"
-
-    - name: Upgrade Summary erzeugen
-      set_fact:
-        discord_message: |
-          **Upgrade-Report**
-          {% for result in upgrade_summary %}
-          - {{ result }}
+        upgrade_summary: |
+          {% for item in groups['linux_lxc'] %}
+          - {{ item }}: {{ hostvars[item]['upgrade_status'] }}
           {% endfor %}
           _Zeit: {{ ansible_date_time.date }} {{ ansible_date_time.time }}_
 
     - name: Nachricht an Discord senden
       uri:
-        url: "{{ hostvars[groups['linux_lxc'][0]].discord_webhook_url_from_inventory }}"
+        url: "{{ discord_webhook_url_from_inventory }}"
         method: POST
         headers:
           Content-Type: "application/json"
         body:
-          content: "{{ discord_message }}"
+          content: "{{ upgrade_summary }}"
         body_format: json
         status_code: 204
