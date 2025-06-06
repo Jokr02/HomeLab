@@ -11,13 +11,4 @@
       update_cache: yes
       force_apt_get: yes
     when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
-  - name: Upgrade all installed packages for CentOS
-    yum:
-      name: '*'
-      state: latest
-    when: ansible_distribution == "CentOS"
-  - name: Upgrade all installed packages for openSUSE
-    zypper:
-      name: '*'
-      state: latest
-    when: ansible_distribution == "openSUSE Leap"
+
