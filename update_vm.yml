@@ -1,14 +1,33 @@
-# NOTE01: Be sure to modify your /etc/ansible/hosts file to include your hosts!
-# NOTE02: Be sure to ssh-add private key!
----
-- hosts: linux_vm # Replace this once you add your hosts; localhost will require a password which will probably fail by default
-  become: true # This makes it so Ansible becomes root to run privilaged tasks such as updating the system
+- hosts: linux_vm
+  gather_facts: true
+  vars:
+    discordwebhook: "{{ discordwebhook }}"
   tasks:
-  - name: Upgrade all installed packages for Debian and Ubuntu
-    apt:
-      name: "*"
-      state: latest
-      update_cache: yes
-      force_apt_get: yes
-    when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+    - name: Run package upgrade
+      apt:
+        name: "*"
+        state: latest
+        update_cache: yes
+        force_apt_get: yes
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+        APT_LISTCHANGES_FRONTEND: none
+      register: upgrade_result
+      ignore_errors: true
+
+    - name: Set upgrade result fact
+      set_fact:
+        upgrade_status: "{{ 'success' if upgrade_result is succeeded else 'failed' }}"
+
+    - name: Set timestamp
+      set_fact:
+        upgrade_timestamp: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+- hosts: localhost
+  gather_facts: false
+  vars:
+    target_group: "{{ groups['linux_vm'] }}"
+    notification_title: "Linux VM Upgrade Report"
+  roles:
+    - discord_notify
 
