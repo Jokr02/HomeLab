@@ -23,6 +23,10 @@
       set_fact:
         upgrade_status: "{{ '✅ Erfolgreich' if upgrade_result is succeeded else '❌ Fehler' }}"
 
+    - name: Timestamp setzen
+      set_fact:
+        upgrade_timestamp: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
 - hosts: localhost
   gather_facts: false
   vars:
@@ -34,7 +38,7 @@
           {% for item in groups['linux_lxc'] %}
           - {{ item }}: {{ hostvars[item]['upgrade_status'] }}
           {% endfor %}
-          _Zeit: {{ ansible_date_time.date }} {{ ansible_date_time.time }}_
+          _Zeit: {{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}_
 
     - name: Nachricht an Discord senden
       uri:
