@@ -2,9 +2,9 @@
 - hosts: linux_lxc
   gather_facts: true
   vars:
-    discord_webhook_url_from_inventory: "{{ discordwebhook }}"
+    discord_webhook_url: "{{ discordwebhook }}"
   tasks:
-    - name: Upgrade aller installierten Pakete für Debian und Ubuntu
+    - name: Upgrade all installed packages on Debian and Ubuntu
       apt:
         name: "*"
         state: latest
@@ -19,62 +19,62 @@
       register: upgrade_result
       ignore_errors: true
 
-    - name: Erfolg oder Fehler als Host-Fact speichern
+    - name: Set upgrade result as host fact
       set_fact:
         upgrade_status: "{{ 'success' if upgrade_result is succeeded else 'failed' }}"
 
-    - name: Timestamp setzen
+    - name: Set timestamp
       set_fact:
         upgrade_timestamp: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
 
 - hosts: localhost
   gather_facts: false
   vars:
-    discord_webhook_url_from_inventory: "{{ discordwebhook }}"
+    discord_webhook_url: "{{ discordwebhook }}"
   tasks:
-    - name: Alle Upgrade-Ergebnisse sammeln
+    - name: Collect all upgrade results
       set_fact:
         upgrade_summary: |
           {% set success_count = 0 %}
           {% set fail_count = 0 %}
-          {% for item in groups['linux_lxc'] %}
-            {% if hostvars[item]['upgrade_status'] == 'success' %}
+          {% for host in groups['linux_lxc'] %}
+            {% if hostvars[host]['upgrade_status'] == 'success' %}
               {% set success_count = success_count + 1 %}
             {% else %}
               {% set fail_count = fail_count + 1 %}
             {% endif %}
           {% endfor %}
           {% set _ = namespace(success=success_count, fail=fail_count) %}
-          {% for item in groups['linux_lxc'] %}
-          - {{ item }}: {{ '✅ Erfolgreich' if hostvars[item]['upgrade_status'] == 'success' else '❌ Fehler' }}
+          {% for host in groups['linux_lxc'] %}
+          - {{ host }}: {{ '✅ Success' if hostvars[host]['upgrade_status'] == 'success' else '❌ Failed' }}
           {% endfor %}
         success_count: "{{ success_count }}"
         fail_count: "{{ fail_count }}"
         upgrade_timestamp: "{{ hostvars[groups['linux_lxc'][0]]['upgrade_timestamp'] }}"
 
-    - name: Farbe für Discord bestimmen
+    - name: Determine Discord embed color
       set_fact:
         discord_color: >-
           {% if fail_count == 0 %}
-            65280            # grün
+            65280            # green
           {% elif success_count == 0 %}
-            16711680         # rot
+            16711680         # red
           {% else %}
-            16776960         # gelb
+            16776960         # yellow
           {% endif %}
 
-    - name: Nachricht an Discord senden
+    - name: Send upgrade report to Discord
       uri:
-        url: "{{ discord_webhook_url_from_inventory }}"
+        url: "{{ discord_webhook_url }}"
         method: POST
         headers:
           Content-Type: "application/json"
         body:
           embeds:
-            - title: "Upgrade-Report"
+            - title: "Upgrade Report"
               description: "{{ upgrade_summary }}"
               color: "{{ discord_color | int }}"
               footer:
-                text: "Stand: {{ upgrade_timestamp }}"
+                text: "Timestamp: {{ upgrade_timestamp }}"
         body_format: json
         status_code: 204
