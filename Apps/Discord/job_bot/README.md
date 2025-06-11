@@ -101,13 +101,6 @@ sudo systemctl start discord-jobbot
 📋 License
 MIT – feel free to use, modify, and contribute!
 
-yaml
-Kopieren
-Bearbeiten
-
----
-
-Wenn du möchtest, kann ich auch gleich eine `requirements.txt`, `.env.template` und Beispiel-`config.json` generieren. Sag einfach Bescheid!
 
 
 
