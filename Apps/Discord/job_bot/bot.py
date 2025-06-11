@@ -1,3 +1,75 @@
+import smtplib
+from email.message import EmailMessage
+from fpdf import FPDF
+
+def generate_dynamic_pdf(job_title):
+    try:
+        with open("anschreiben_vorlage.txt", "r", encoding="utf-8") as f:
+            text = f.read()
+            text = text.replace("{{job_title}}", job_title)
+            text = text.replace("{{sender_name}}", os.getenv("SENDER_NAME", "Max Mustermann"))
+
+        pdf_path = f"anschreiben_{job_title}.pdf"
+        pdf = FPDF()
+        pdf.add_page()
+
+        paragraphs = text.strip().split("\n\n")
+        title = paragraphs[0]
+        rest = paragraphs[1:]
+
+        # Title bold, size 11
+        pdf.set_font("Arial", style="B", size=11)
+        pdf.multi_cell(0, 6, title)
+        pdf.ln(4)
+
+        # Body regular, size 11
+        pdf.set_font("Arial", size=11)
+        for paragraph in rest:
+            for line in paragraph.split("\n"):
+                pdf.multi_cell(0, 6, line)
+            pdf.ln(4)
+
+        pdf.output(pdf_path)
+        return pdf_path
+    except Exception as e:
+        logger.error(f"Fehler beim Generieren des PDFs: {e}")
+        return None
+def send_application_email(to_address, job_title):
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+    sender_name = os.getenv("SENDER_NAME", "JobBot")
+    sender_email = smtp_user
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Bewerbung: {job_title}"
+    msg["From"] = f"{sender_name} <{sender_email}>"
+    msg["To"] = to_address
+    msg.set_content(f"Sehr geehrte Damen und Herren,\n\nhiermit bewerbe ich mich auf die Stelle '{job_title}'.\nIm Anhang finden Sie meine Unterlagen.\n\nMit freundlichen Grüßen\n{sender_name}")
+
+    # Anhänge
+    pdf = generate_dynamic_pdf(job_title)
+    files = ["lebenslauf.pdf", "zeugnisse.pdf"]
+    if pdf:
+        files.append(pdf)
+
+    for filename in files:
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename=os.path.basename(filename))
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        logger.error(f"E-Mail-Sendeproblem: {e}")
+        return False
+
+
 import os
 import json
 import re
@@ -116,7 +188,31 @@ def fetch_kununu_rating(company_name):
         return None
 
 # -------- Discord UI Buttons --------
-class JobView(View):
+
+class FavoriteActionsView(View):
+    def __init__(self, job):
+        super().__init__(timeout=None)
+        self.job = job
+
+    @discord.ui.button(label="✅ Bewerbung senden", style=discord.ButtonStyle.green)
+    async def send_button(self, interaction: discord.Interaction, button: Button):
+        if not self.job.get("email"):
+            await interaction.response.send_message("❌ Keine E-Mail-Adresse verfügbar.", ephemeral=True)
+            return
+        success = send_application_email(self.job["email"], self.job["title"])
+        if success:
+            await interaction.response.send_message("📤 Bewerbung erfolgreich versendet!", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Fehler beim Versand der Bewerbung.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Entfernen", style=discord.ButtonStyle.red)
+    async def remove_button(self, interaction: discord.Interaction, button: Button):
+        jobs = load_saved_jobs()
+        jobs = [j for j in jobs if j.get("id") != self.job.get("id")]
+        with open(SAVED_JOBS_FILE, "w") as f:
+            json.dump(jobs, f, indent=2)
+        await interaction.response.send_message("🗑️ Job entfernt.", ephemeral=True)
+
     def __init__(self, job):
         super().__init__(timeout=None)
         self.job = job
@@ -307,11 +403,36 @@ async def set_time(interaction: discord.Interaction, uhrzeit: str):
         config["execution_time"] = uhrzeit
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=2)
+        if not interaction.response.is_done():
+            await interaction.response.send_message(f"⏰ Zeit geändert zu {uhrzeit}.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"⏰ Zeit geändert zu {uhrzeit}.", ephemeral=True)
+    except ValueError:
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ Ungültiges Format. Bitte HH:MM (z.B. 08:30) nutzen.", ephemeral=True)
+        else:
+            await interaction.followup.send("❌ Ungültiges Format. Bitte HH:MM (z.B. 08:30) nutzen.", ephemeral=True)
+async def set_time(interaction: discord.Interaction, uhrzeit: str):
+    try:
+        datetime.strptime(uhrzeit, "%H:%M")
+        config = load_config()
+        config["execution_time"] = uhrzeit
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=2)
         await interaction.response.send_message(f"⏰ Zeit geändert zu {uhrzeit}.", ephemeral=True)
     except:
         await interaction.response.send_message("❌ Ungültiges Format. Bitte HH:MM (z.B. 08:30) nutzen.", ephemeral=True)
 
 # -------- Bot-Start & Zeitplanung --------
+@tree.command(name="send_testmail", description="Sendet eine Testbewerbung an eine E-Mail-Adresse")
+@app_commands.describe(email="Zieladresse für die Test-E-Mail")
+async def send_testmail(interaction: discord.Interaction, email: str):
+    await interaction.response.defer(ephemeral=True)
+
+    success = send_application_email(email, "Test-Job IT Support")
+
+    message = f"✅ Testmail gesendet an {email}" if success else "❌ Fehler beim Versand der Testmail."
+    await interaction.followup.send(message, ephemeral=True)
 @bot.event
 async def on_ready():
     logger.info(f"✅ Eingeloggt als {bot.user}")
@@ -335,3 +456,19 @@ async def schedule_daily_search():
 
 # -------- Bot starten --------
 bot.run(TOKEN)
+
+
+
+@tree.command(name="favorites", description="Zeigt gespeicherte Jobs mit Buttons")
+async def favorites(interaction: discord.Interaction):
+    jobs = load_saved_jobs()
+    if not jobs:
+        await interaction.response.send_message("📭 Keine gespeicherten Jobs gefunden.", ephemeral=True)
+        return
+
+    for job in jobs:
+        embed = discord.Embed(title=job["title"], description=f"{job.get("company", "")}", color=0x00ff00)
+        embed.add_field(name="Ort", value=job.get("location", ""), inline=True)
+        embed.add_field(name="Link", value=job.get("url", ""), inline=False)
+        await interaction.channel.send(embed=embed, view=FavoriteActionsView(job))
+    await interaction.response.send_message("✅ Favoriten geladen.", ephemeral=True)
