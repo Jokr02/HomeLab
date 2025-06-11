@@ -1,105 +1,117 @@
-# 💼 Discord Job Bot
+# 🛠️ Discord JobBot – Automated Job Search & Email Applications
 
-A fully automated Discord bot that sends you daily job postings from multiple platforms – including company ratings from Kununu – directly to your selected channel.
-
----
-
-## ✨ Features
-
-- 🔍 Job search from:
-  - [Adzuna](https://adzuna.de)
-  - [Joblift](https://joblift.de)
-  - [Honeypot.io](https://www.honeypot.io)
-  - [IHK job boards](https://www.dihk.de)
-- ⭐ Employer reviews from [Kununu](https://kununu.com)
-- 💬 Interactive "Save" and "Skip" buttons
-- 💾 Favorite jobs saved per user
-- 📅 Scheduled search every day at a configurable time
-- ⚙️ Slash commands for configuration and favorite management
-- 📈 Logging and log rotation
-- 🌐 Easily customizable location, keywords, and distance
+The **Discord JobBot** searches for IT jobs daily based on your keywords and location, posts them directly to a Discord channel, and lets you **send full applications via button click** — including PDF cover letter, resume and references.
 
 ---
 
-## 🧪 Requirements
+## 🚀 Features
 
-- Python 3.9+
-- Virtual environment (recommended)
-- API credentials:
-  - Discord Bot Token
-  - Adzuna App ID + Key
-  - (Optional) Joblift API Key
+- 🔍 Daily automated job search from sources like Adzuna and StepStone
+- 💬 Send application emails from Discord with one click
+- 📝 Dynamic PDF cover letter based on a text template
+- 📎 Attach resume (PDF), certificates (PDF), and letter
+- 💾 Save jobs to favorites or export them
+- 🗓 Schedule job search time via Slash command
+- ⚙️ Adjust location, radius and keywords at runtime
+- 🔐 SMTP support (Gmail etc.), no cloud dependency
+- 📄 Logging with rotation
 
 ---
 
-## 📦 Installation
+## ⚙️ Setup
+
+### 1. Clone or download
 
 ```bash
-git clone https://github.com/yourusername/discord-jobbot.git
+git clone https://github.com/Jokr02/discord-jobbot.git
 cd discord-jobbot
+```
+
+### 2. Create virtual environment
+
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-Create a .env file:
+```
 
-env
+### 3. Create `.env` file
+
+```env
 DISCORD_BOT_TOKEN=your_discord_token
-DISCORD_CHANNEL_ID=your_channel_id
-ADZUNA_APP_ID=your_adzuna_id
-ADZUNA_APP_KEY=your_adzuna_key
-ADZUNA_COUNTRY=de
-JOBLIFT_API_KEY=your_joblift_api_key (optional)
-ERROR_WEBHOOK_URL=https://discord.com/api/webhooks/... (optional)
+DISCORD_CHANNEL_ID=123456789012345678
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your.email@gmail.com
+SMTP_PASSWORD=your_app_password
+SENDER_NAME=John Doe
 ```
-⚙️ Configuration
-The config is stored in config.json:
 
-```json
-{
-  "location": "Berlin",
-  "radius": 100,
-  "keywords": ["system administrator", "linux", "vmware"],
-  "work_type": "all",
-  "execution_time": "12:00"
-}
+### 4. Create a cover letter template
+
+**Filename:** `anschreiben_vorlage.txt`
+
+```txt
+Application for {{job_title}}
+
+Dear Sir or Madam,
+
+I hereby apply for the position of {{job_title}}.
+
+Sincerely,  
+{{sender_name}}
 ```
-You can also update it with /set_time or /config inside Discord.
 
-✅ Commands
-Command	Description
-/favorites	Show your saved jobs
-/clear_favorites	Clear your saved jobs
-/set_time	Change the daily search time
-/config	Show current job search configuration
+You can customize the content. The variables `{{job_title}}` and `{{sender_name}}` will be replaced dynamically.
 
-🛠️ Autostart with systemd (optional)
-```ini
-[Unit]
-Description=Discord Job Bot
-After=network.target
+---
 
-[Service]
-ExecStart=/path/to/venv/bin/python /path/to/bot.py
-WorkingDirectory=/path/to/discord-jobbot
-Restart=always
-Environment="PYTHONUNBUFFERED=1"
-
-[Install]
-WantedBy=multi-user.target
-```
-Then:
+## 🧪 Run & test
 
 ```bash
-sudo systemctl daemon-reexec
-sudo systemctl enable discord-jobbot
-sudo systemctl start discord-jobbot
+python bot.py
 ```
-📋 License
-MIT – feel free to use, modify, and contribute!
 
+Or run it as a system service or cron job.
 
+---
 
+## 💬 Available Slash Commands
 
+| Command             | Description                                     |
+|---------------------|-------------------------------------------------|
+| `/favorites`         | Shows saved jobs with email action buttons      |
+| `/clear_favorites`  | Deletes all saved jobs                          |
+| `/export_favorites` | Exports saved jobs as CSV                       |
+| `/set_time`         | Sets the daily search time (e.g. `12:00`)       |
+| `/set_parameters`   | Sets location, radius and keywords              |
+| `/send_testmail`    | Sends a test email with your attachments        |
 
+---
 
+## 📁 Example directory
 
+```bash
+discord-jobbot/
+├── bot.py
+├── anschreiben_vorlage.txt
+├── lebenslauf.pdf
+├── zeugnisse.pdf
+├── .env
+├── config.json
+├── saved_jobs.json
+├── jobs_seen.json
+```
+
+---
+
+## 🛡️ GDPR/Privacy Notice
+
+This bot runs **entirely on your own infrastructure**. No data is stored in the cloud. Applications are only sent when you manually confirm the action via Discord.
+
+---
+
+## 💬 Contact
+
+Open an issue or reach out via Discord. Good luck with your job hunt! 🚀
