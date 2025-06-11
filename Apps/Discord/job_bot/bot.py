@@ -233,6 +233,15 @@ async def search_jobs():
         logger.error(f"Fehler beim Senden an Discord: {e}")
 @tree.command(name="favorites", description="Zeigt gespeicherte Jobs an")
 async def favorites(interaction: discord.Interaction):
+    jobs = load_saved_jobs()
+    if not jobs:
+        await interaction.response.send_message("📭 Keine gespeicherten Jobs gefunden.", ephemeral=True)
+        return
+
+    msg_lines = []
+    for job in jobs[-10:]:
+        msg_lines.append(f"💼 **{job['title']}**\n🏢 {job['company']}\n📍 {job['location']}\n🔗 {job['url']}")
+    await interaction.response.send_message("\n\n".join(msg_lines), ephemeral=True)
 
 @tree.command(name="update_config", description="Aktualisiert Suchparameter für Jobs")
 @app_commands.describe(
@@ -271,6 +280,23 @@ async def zeige_config(interaction: discord.Interaction):
     config = load_config()
     text = f"🌍 Ort: {config['location']}\n📏 Radius: {config['radius']} km\n🔎 Keywords: {', '.join(config['keywords'])}\n⏰ Uhrzeit: {config['execution_time']}"
     await interaction.response.send_message(text, ephemeral=True)
+
+
+@tree.command(name="set_parameters", description="Setzt Ort, Radius und Keywords für die Jobsuche")
+@app_commands.describe(
+    location="Ort der Jobsuche",
+    radius="Suchradius in Kilometern",
+    keywords="Kommagetrennte Stichwörter (z. B. linux, vmware, windows)"
+)
+async def set_parameters(interaction: discord.Interaction, location: str, radius: int, keywords: str):
+    config = load_config()
+    config["location"] = location
+    config["radius"] = radius
+    config["keywords"] = [k.strip() for k in keywords.split(",")]
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
+    await interaction.response.send_message("✅ Suchparameter wurden aktualisiert.", ephemeral=True)
+
 
 @tree.command(name="set_time", description="Setzt die Uhrzeit für tägliche Suche (z.B. 12:00)")
 @app_commands.describe(uhrzeit="Format: HH:MM (24h)")
