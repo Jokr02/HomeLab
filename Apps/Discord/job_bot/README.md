@@ -56,7 +56,7 @@ The config is stored in config.json:
 
 ```json
 {
-  "location": "Coburg",
+  "location": "Berlin",
   "radius": 100,
   "keywords": ["system administrator", "linux", "vmware"],
   "work_type": "all",
