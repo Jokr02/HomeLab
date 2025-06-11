@@ -43,8 +43,6 @@ pip install -r requirements.txt
 Create a .env file:
 
 env
-Kopieren
-Bearbeiten
 DISCORD_BOT_TOKEN=your_discord_token
 DISCORD_CHANNEL_ID=your_channel_id
 ADZUNA_APP_ID=your_adzuna_id
@@ -52,12 +50,11 @@ ADZUNA_APP_KEY=your_adzuna_key
 ADZUNA_COUNTRY=de
 JOBLIFT_API_KEY=your_joblift_api_key (optional)
 ERROR_WEBHOOK_URL=https://discord.com/api/webhooks/... (optional)
+```
 ⚙️ Configuration
 The config is stored in config.json:
 
-json
-Kopieren
-Bearbeiten
+```json
 {
   "location": "Coburg",
   "radius": 100,
@@ -65,6 +62,7 @@ Bearbeiten
   "work_type": "all",
   "execution_time": "12:00"
 }
+```
 You can also update it with /set_time or /config inside Discord.
 
 ✅ Commands
@@ -75,9 +73,7 @@ Command	Description
 /config	Show current job search configuration
 
 🛠️ Autostart with systemd (optional)
-ini
-Kopieren
-Bearbeiten
+```ini
 [Unit]
 Description=Discord Job Bot
 After=network.target
@@ -90,14 +86,14 @@ Environment="PYTHONUNBUFFERED=1"
 
 [Install]
 WantedBy=multi-user.target
+```
 Then:
 
-bash
-Kopieren
-Bearbeiten
+```bash
 sudo systemctl daemon-reexec
 sudo systemctl enable discord-jobbot
 sudo systemctl start discord-jobbot
+```
 📋 License
 MIT – feel free to use, modify, and contribute!
 
