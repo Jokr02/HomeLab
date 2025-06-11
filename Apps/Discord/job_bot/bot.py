@@ -233,6 +233,24 @@ async def search_jobs():
         logger.error(f"Fehler beim Senden an Discord: {e}")
 @tree.command(name="favorites", description="Zeigt gespeicherte Jobs an")
 async def favorites(interaction: discord.Interaction):
+
+@tree.command(name="update_config", description="Aktualisiert Suchparameter für Jobs")
+@app_commands.describe(
+    location="Ort der Jobsuche",
+    radius="Suchradius in Kilometern",
+    keywords="Kommagetrennte Keywords (z. B. linux, vmware)",
+    work_type="Arbeitsform: all, remote, hybrid, onsite"
+)
+async def update_config(interaction: discord.Interaction, location: str, radius: int, keywords: str, work_type: str = "all"):
+    config = load_config()
+    config["location"] = location
+    config["radius"] = radius
+    config["keywords"] = [kw.strip() for kw in keywords.split(",")]
+    config["work_type"] = work_type
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
+    await interaction.response.send_message("✅ Konfiguration aktualisiert!", ephemeral=True)
+
     jobs = load_saved_jobs()
     if not jobs:
         await interaction.response.send_message("📭 Keine gespeicherten Jobs gefunden.", ephemeral=True)
